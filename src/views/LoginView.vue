@@ -11,7 +11,7 @@ const handleLogin = async () => {
   try {
     // TODO: Implement actual login logic
     error.value = ''
-    router.push('/')
+    router.push('/profile')
   } catch (e) {
     error.value = 'Invalid email or password'
   }

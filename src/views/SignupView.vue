@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { authService } from '../services/auth.service'
 
 const router = useRouter()
 const formData = ref({
@@ -13,10 +14,11 @@ const formData = ref({
 })
 
 const bloodTypes = [
-  'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'
+  'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'
 ]
 
 const error = ref('')
+const loading = ref(false)
 
 const handleSignup = async () => {
   try {
@@ -24,11 +26,37 @@ const handleSignup = async () => {
       error.value = 'Passwords do not match'
       return
     }
-    // TODO: Implement actual signup logic
+
+    loading.value = true
     error.value = ''
-    router.push('/login')
-  } catch (e) {
-    error.value = 'An error occurred during signup'
+
+    const { confirmPassword, ...registrationData } = formData.value
+    console.log('Attempting registration with data:', { ...registrationData, password: '***' })
+    
+    const response = await authService.register(registrationData)
+    console.log('Registration response:', response)
+    
+    // Redirect to home page after successful registration
+    router.push('/')
+  } catch (e: any) {
+    console.error('Registration error:', e)
+    if (e.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error('Error response data:', e.response.data)
+      console.error('Error response status:', e.response.status)
+      error.value = e.response.data?.message || 'Registration failed. Please try again.'
+    } else if (e.request) {
+      // The request was made but no response was received
+      console.error('No response received:', e.request)
+      error.value = 'Unable to connect to the server. Please check your internet connection.'
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error('Error setting up request:', e.message)
+      error.value = 'An unexpected error occurred. Please try again.'
+    }
+  } finally {
+    loading.value = false
   }
 }
 </script>
@@ -70,6 +98,7 @@ const handleSignup = async () => {
             v-model="formData.password"
             required
             placeholder="Create a password"
+            minlength="6"
           />
         </div>
 
@@ -81,6 +110,7 @@ const handleSignup = async () => {
             v-model="formData.confirmPassword"
             required
             placeholder="Confirm your password"
+            minlength="6"
           />
         </div>
 
@@ -113,7 +143,13 @@ const handleSignup = async () => {
           {{ error }}
         </div>
 
-        <button type="submit" class="signup-button">Create Account</button>
+        <button 
+          type="submit" 
+          class="signup-button"
+          :disabled="loading"
+        >
+          {{ loading ? 'Creating Account...' : 'Create Account' }}
+        </button>
 
         <div class="form-footer">
           <p>
@@ -202,11 +238,16 @@ input:focus, select:focus {
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.2s;
 }
 
 .signup-button:hover {
   background-color: #b71c1c;
+}
+
+.signup-button:disabled {
+  background-color: #ffcdd2;
+  cursor: not-allowed;
 }
 
 .form-footer {
